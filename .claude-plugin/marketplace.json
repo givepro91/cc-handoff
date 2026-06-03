@@ -1,0 +1,11 @@
+{
+  "name": "cc-handoff",
+  "owner": { "name": "Jay (Spacewalk)", "email": "jay@spacewalk.tech" },
+  "plugins": [
+    {
+      "name": "handoff",
+      "source": "./plugins/handoff",
+      "description": "Hook-enforced session handoff — auto-preserves decisions & open work to a git-tracked docs/handoff/HANDOFF.md so the next session, even on another machine, continues seamlessly."
+    }
+  ]
+}
