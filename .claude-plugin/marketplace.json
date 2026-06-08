@@ -5,7 +5,7 @@
     {
       "name": "handoff",
       "source": "./plugins/handoff",
-      "description": "Hook-enforced session handoff — auto-preserves decisions & open work to a git-tracked docs/handoff/HANDOFF.md so the next session, even on another machine, continues seamlessly."
+      "description": "Hook-enforced, branch-aware session handoff — auto-preserves decisions & open work to a per-branch, git-tracked docs/handoff/<branch>.md (+ derived status board) so parallel branches/worktrees never collide and the next session, even on another machine, continues seamlessly."
     }
   ]
 }

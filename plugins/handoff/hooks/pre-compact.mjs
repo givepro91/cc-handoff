@@ -4,7 +4,7 @@
 // Does not block compaction. Snapshots go to docs/handoff/.snapshots/ (auto git-ignored).
 import { existsSync, mkdirSync, copyFileSync, appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readInput, projectDir, handoffDir, isOptedIn, git } from './_lib.mjs';
+import { readInput, projectDir, handoffDir, isOptedIn, git, currentBranch, branchSlug } from './_lib.mjs';
 
 const input = readInput();
 const dir = projectDir(input);
@@ -23,14 +23,15 @@ try {
   }
 } catch { /* ignore */ }
 
-// lossless transcript backup (overwrite latest)
+// lossless transcript backup (overwrite latest, per-branch so worktrees don't clobber each other)
+const branch = currentBranch(dir) || '?';
+const slug = branchSlug(branch);
 if (input.transcript_path && existsSync(input.transcript_path)) {
-  try { copyFileSync(input.transcript_path, join(snapDir, 'last-precompact-transcript.jsonl')); } catch { /* ignore */ }
+  try { copyFileSync(input.transcript_path, join(snapDir, `last-precompact-${slug}.jsonl`)); } catch { /* ignore */ }
 }
 
 // breadcrumb
 const ts = new Date().toISOString();
-const branch = git(dir, 'rev-parse --abbrev-ref HEAD') || '?';
 const status = git(dir, 'status --porcelain') || '';
 const changed = status ? status.split('\n').filter(Boolean).length : 0;
 const log = git(dir, 'log --oneline -3') || '(no commits)';
