@@ -2,7 +2,7 @@
 
 > Never lose context between Claude Code sessions — even across machines.
 
-A [Claude Code](https://docs.claude.com/en/docs/claude-code) plugin that automatically preserves a session's **decisions, open work, and next steps** into a git-tracked `docs/handoff/HANDOFF.md`, so the next session — on this machine or another — picks up exactly where you left off.
+A [Claude Code](https://docs.claude.com/en/docs/claude-code) plugin that automatically preserves a session's **decisions, open work, and next steps** into a git-tracked, **per-branch** handoff (`docs/handoff/<branch>.md`), so the next session — on this machine or another, on the same branch — picks up exactly where you left off.
 
 ## The one-line design
 
@@ -20,12 +20,29 @@ A [Claude Code](https://docs.claude.com/en/docs/claude-code) plugin that automat
 
 | Hook | When | What it does |
 |------|------|--------------|
-| `SessionStart` | startup / resume / clear / compact | Injects `docs/handoff/HANDOFF.md` into context — **auto-restore** |
-| `PreCompact` | right before compaction | Backs up the raw transcript + a git breadcrumb to `docs/handoff/.snapshots/` — **loss protection** |
-| `Stop` | end of a turn | If ≥N files changed *and* the handoff is stale, blocks **once** and asks the model to write it — **never-miss enforcement** |
-| `/handoff` skill | manual | Write a precise handoff whenever you want |
+| `SessionStart` | startup / resume / clear / compact | Injects **the current branch's** handoff into context — **auto-restore** (auto-migrates a legacy `HANDOFF.md` on first run) |
+| `PreCompact` | right before compaction | Backs up the raw transcript (per-branch) + a git breadcrumb to `docs/handoff/.snapshots/` — **loss protection** |
+| `Stop` | end of a turn | If ≥N files changed *and* the branch handoff is stale, blocks **once** and asks the model to write it — **never-miss enforcement** |
+| `/handoff` skill | manual | Write this branch's handoff, or `/handoff status` / `/handoff resolve` |
 
 **Honest limitation:** there is no way to make the model write an intelligent handoff at the exact instant you close the terminal — `SessionEnd` hook output is ignored. Instead this catches turn-end and pre-compaction, which covers virtually every real case.
+
+## Parallel branches & worktrees
+
+Run many sessions at once (Boris-style: several local + a few on the web) and a single shared handoff falls apart — it gets overwritten and you can't tell which one is latest or already resolved. v2 fixes that:
+
+- **One handoff per branch** — `docs/handoff/<branch>.md` (slug-sanitized, e.g. `feat/login` → `feat-login.md`). Each worktree only ever writes its own branch file, so there's **no disk or merge conflict**.
+- **`SessionStart` injects only the current branch's** handoff — no cross-branch noise.
+- **Derived status board** — `/handoff status` scans the files and shows status/age/issue per branch (🟢 active · ✅ resolved · ⤵️ merged), marking the current branch. There is **no committed index file** (that would conflict on merge) — the board is always derived on demand.
+- **`/handoff resolve`** marks a branch done after merge.
+
+```
+🟢 feat-login   (current)  2h ago   #42
+🟢 fix-cache               1d ago   #51
+✅ main         resolved   3d ago
+```
+
+Upgrading from v1? The legacy single `docs/handoff/HANDOFF.md` is **auto-migrated** to the current branch's file on first run (lossless — the legacy file is left in place; delete it once you've confirmed).
 
 ## Install
 
@@ -47,13 +64,13 @@ Or from a local clone:
 Installing the plugin does **not** disturb any project on its own. A project opts in by having a `docs/handoff/` directory — without it, every hook stays silent.
 
 ```sh
-/handoff        # creates docs/handoff/ + the first HANDOFF.md → hooks activate from then on
+/handoff        # creates docs/handoff/ + this branch's handoff → hooks activate from then on
 ```
 
 Optionally, pin it in your project `CLAUDE.md` / `AGENTS.md` so new sessions read it first:
 
 ```
-At session start, if docs/handoff/HANDOFF.md exists, read it first and continue from "Next steps".
+At session start, if a handoff for the current branch exists under docs/handoff/, read it first and continue from "Next steps".
 ```
 
 ## Configuration
@@ -65,15 +82,26 @@ At session start, if docs/handoff/HANDOFF.md exists, read it first and continue 
 
 ## Data layout
 
-- `docs/handoff/HANDOFF.md` — **git-tracked.** The canonical handoff; travels across machines via commit + push.
-- `docs/handoff/.snapshots/` — **git-ignored** (added automatically). Lossless pre-compaction backups, local to the machine.
+- `docs/handoff/<branch>.md` — **git-tracked.** One canonical handoff per branch; travels across machines via commit + push.
+- `docs/handoff/HANDOFF.md` — legacy single file (v1). Auto-migrated to the branch file on first run; safe to delete afterwards.
+- `docs/handoff/.snapshots/` — **git-ignored** (added automatically). Lossless per-branch pre-compaction backups, local to the machine.
 
-Keep the detailed *why* of each decision in your **commit messages** (`git log` is portable too); keep open work and next steps in `HANDOFF.md`.
+The status board is **derived** (`/handoff status`) — there is no index file to commit or conflict on.
+
+Keep the detailed *why* of each decision in your **commit messages** (`git log` is portable too); keep open work and next steps in the branch handoff.
 
 ## What a handoff looks like
 
 ```markdown
-# Handoff — <task> · <date> · <machine/branch>
+---
+branch: feat/login
+status: active            # active | resolved | merged
+updated: 2026-06-08T12:00:00.000Z
+issue: 42                 # optional
+pr: 51                    # optional
+---
+
+# Handoff — <task> · <date> · <machine>
 
 ## Restore in 30s
 What you were doing / where you got to / what you just finished.

@@ -1,7 +1,7 @@
 {
   "name": "handoff",
-  "description": "Session/cross-machine handoff via a hybrid of hooks — Stop (auto-generate), PreCompact (snapshot), SessionStart (restore). Data lives in the repo's git-tracked docs/handoff/HANDOFF.md; the tooling is machine-global. Per-project opt-in (active when docs/handoff/ exists).",
-  "version": "0.1.0",
+  "description": "Branch-aware session/cross-machine handoff via a hybrid of hooks — Stop (auto-generate), PreCompact (snapshot), SessionStart (restore). One handoff per branch (docs/handoff/<branch>.md) + a derived status board, so parallel branches/worktrees never collide and it's always clear which handoff is latest/resolved. Data lives in the repo's git; the tooling is machine-global. Per-project opt-in (active when docs/handoff/ exists).",
+  "version": "0.2.0",
   "author": { "name": "Jay (Spacewalk)", "email": "jay@spacewalk.tech" },
   "homepage": "https://github.com/givepro91/cc-handoff",
   "repository": "https://github.com/givepro91/cc-handoff",

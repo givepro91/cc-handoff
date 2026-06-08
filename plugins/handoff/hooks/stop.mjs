@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // Stop hook — medium enforcement: only when meaningful work happened (default 3+ files
-// changed) AND docs/handoff/HANDOFF.md is out of date, block the stop ONCE and instruct
-// the model to write the handoff. The reason of decision:"block" is injected as the
-// model's next instruction.
+// changed) AND the CURRENT BRANCH's handoff is out of date, block the stop ONCE and
+// instruct the model to write it. The reason of decision:"block" becomes the next
+// instruction.
 //
+// v2: targets the per-branch file docs/handoff/<slug>.md (legacy HANDOFF.md still counts
+// for staleness until migrated).
 // Loop guard:   stop_hook_active=true → pass immediately.
 // Global off:   HANDOFF_STOP_ENFORCE=0
 // Threshold:    HANDOFF_MIN_CHANGED_FILES (default 3)
-import { existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { statSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import {
-  readInput, projectDir, handoffFile, isOptedIn, isGitRepo, changedFiles, output,
+  readInput, projectDir, isOptedIn, isGitRepo, changedFiles, resolveHandoff, output,
 } from './_lib.mjs';
 
 const input = readInput();
@@ -28,11 +30,12 @@ if (!files) process.exit(0);
 const threshold = parseInt(process.env.HANDOFF_MIN_CHANGED_FILES || '3', 10);
 if (files.length < threshold) process.exit(0);                 // ignore trivial changes
 
-// staleness: stale if HANDOFF is missing, or older than the most recently edited changed file
-const hf = handoffFile(dir);
+// staleness: stale if the branch handoff is missing, or older than the most recently edited changed file
+const r = resolveHandoff(dir);                                 // read-only (no migration in Stop)
+const rel = `docs/handoff/${basename(r.file)}`;
 let stale = true;
-if (existsSync(hf)) {
-  const hmt = statSync(hf).mtimeMs;
+if (r.exists) {
+  const hmt = statSync(r.file).mtimeMs;
   let newest = 0;
   for (const f of files) {
     try { const m = statSync(join(dir, f)).mtimeMs; if (m > newest) newest = m; } catch { /* deleted */ }
@@ -44,9 +47,14 @@ if (!stale) process.exit(0);                                   // already up to 
 output({
   decision: 'block',
   reason: [
-    `Update the handoff before ending. ${files.length} file(s) changed in this session but docs/handoff/HANDOFF.md is out of date.`,
+    `Update the handoff before ending. ${files.length} file(s) changed on branch "${r.branch}" but ${rel} is out of date.`,
     ``,
-    `Write/update docs/handoff/HANDOFF.md now with these sections, then finish:`,
+    `Write/update ${rel} now — keep YAML front-matter (branch/status/updated) at the top, then these sections, then finish:`,
+    `  ---`,
+    `  branch: ${r.branch}`,
+    `  status: active`,
+    `  updated: <ISO timestamp>`,
+    `  ---`,
     `  ## Restore in 30s — what you were doing / where you got to / what you just finished`,
     `  ## Next steps — concrete next actions (files & commands) / blockers + what was already tried / parked items + why`,
     `  ## Touch points — path:line, verification command → expected result`,
