@@ -21,8 +21,8 @@
 - Report honestly: if a check fails, say so with the output; mark unverified work "unverified". Never present incomplete work as done.
 
 ## Parallel Git Workflow
-- Never commit directly to the default branch (`main`/`master`). **One task = one ISSUE = one branch.**
-- For parallel local sessions, isolate with a **worktree per task**: `git worktree add ../<task> -b <branch>`.
+- Never work on or commit to the default branch (`main`/`master`). **One task = one ISSUE = one branch.**
+- **Create the branch/worktree BEFORE you start editing — not at commit time.** Isolate each task in its own **git worktree** (`git worktree add ../<task> -b <branch>`), or use your agent's native worktree support — **Claude Code provides worktrees** — so parallel sessions never share a checkout and never collide on `main`.
 - Open small, surgical PRs that reference the issue (e.g. "Fixes #42"); keep one concern per PR.
 - If cc-handoff is installed: **one branch = one handoff** (`docs/handoff/<branch>.md`).
 
