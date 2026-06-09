@@ -20,10 +20,10 @@ A [Claude Code](https://docs.claude.com/en/docs/claude-code) plugin that automat
 
 | Hook | When | What it does |
 |------|------|--------------|
-| `SessionStart` | startup / resume / clear / compact | Injects **the current branch's** handoff into context — **auto-restore** (auto-migrates a legacy `HANDOFF.md` on first run) |
+| `SessionStart` | startup / resume / clear / compact | Injects **the current branch's** handoff into context — **auto-restore** (blocked ones prominently; resolved/deleted ones not at all; auto-migrates a legacy `HANDOFF.md` on first run) |
 | `PreCompact` | right before compaction | Backs up the raw transcript (per-branch) + a git breadcrumb to `docs/handoff/.snapshots/` — **loss protection** |
 | `Stop` | end of a turn | If ≥N files changed *and* the branch handoff is stale, blocks **once** and asks the model to write it — **never-miss enforcement** |
-| `/handoff` skill | manual | Write this branch's handoff, or `/handoff status` / `/handoff resolve` |
+| `/handoff` skill | manual | Write this branch's handoff (`blocked` to flag it), or `/handoff status` · `/handoff resolve` (delete when done) · `/handoff prune` (clear orphans) |
 
 **Honest limitation:** there is no way to make the model write an intelligent handoff at the exact instant you close the terminal — `SessionEnd` hook output is ignored. Instead this catches turn-end and pre-compaction, which covers virtually every real case.
 
@@ -33,13 +33,14 @@ Run many sessions at once (Boris-style: several local + a few on the web) and a 
 
 - **One handoff per branch** — `docs/handoff/<branch>.md` (slug-sanitized, e.g. `feat/login` → `feat-login.md`). Each worktree only ever writes its own branch file, so there's **no disk or merge conflict**.
 - **`SessionStart` injects only the current branch's** handoff — no cross-branch noise.
-- **Derived status board** — `/handoff status` scans the files and shows status/age/issue per branch (🟢 active · ✅ resolved · ⤵️ merged), marking the current branch. There is **no committed index file** (that would conflict on merge) — the board is always derived on demand.
-- **`/handoff resolve`** marks a branch done after merge.
+- **Derived status board** — `/handoff status` scans the files and shows status/age/issue per branch (🟢 active · ⛔ blocked), marking the current branch, plus any **prunable** orphans. There is **no committed index file** (that would conflict on merge) — the board is always derived on demand.
+- **Ephemeral by design** — a handoff exists only while work is open. **`/handoff resolve`** deletes a finished branch's handoff (git history keeps it); **`/handoff prune`** clears handoffs whose branches were merged/deleted — so files never pile up on `main`.
 
 ```
 🟢 feat-login   (current)  2h ago   #42
-🟢 fix-cache               1d ago   #51
-✅ main         resolved   3d ago
+⛔ fix-cache    BLOCKED     1d ago   #51
+
+prunable: chore-old (branch merged) — run /handoff prune
 ```
 
 Upgrading from v1? The legacy single `docs/handoff/HANDOFF.md` is **auto-migrated** to the current branch's file on first run (lossless — the legacy file is left in place; delete it once you've confirmed).
@@ -95,7 +96,7 @@ Keep the detailed *why* of each decision in your **commit messages** (`git log` 
 ```markdown
 ---
 branch: feat/login
-status: active            # active | resolved | merged
+status: active            # active | blocked  (done = file deleted)
 updated: 2026-06-08T12:00:00.000Z
 issue: 42                 # optional
 pr: 51                    # optional
