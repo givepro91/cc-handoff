@@ -5,7 +5,7 @@
     {
       "name": "handoff",
       "source": "./plugins/handoff",
-      "description": "Hook-enforced, branch-aware session handoff — auto-preserves decisions & open work to a per-branch, git-tracked docs/handoff/<branch>.md (+ derived status board) so parallel branches/worktrees never collide and the next session, even on another machine, continues seamlessly."
+      "description": "Hook-enforced, branch-aware, ephemeral session handoff — auto-preserves open work to a per-branch, git-tracked docs/handoff/<branch>.md (status active|blocked, + derived board) so parallel branches/worktrees never collide; resolve deletes finished handoffs and prune clears merged/orphaned ones so they don't pile up. The next session, even on another machine, continues seamlessly."
     }
   ]
 }
